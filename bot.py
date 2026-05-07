@@ -33,7 +33,7 @@ def get_viral_content():
         try:
             print("Trying Groq...")
             res = requests.post("https://api.groq.com/openai/v1/chat/completions",
-                headers={"Authorization": f: "Bearer {GROQ_KEY}"},
+                headers={"Authorization": f"Bearer {GROQ_KEY}"},
                 json={"model": "llama3-8b-8192", "messages": [{"role": "user", "content": prompt}]}, timeout=10).json()
             return res['choices'][0]['message']['content']
         except: pass
@@ -74,7 +74,7 @@ async def generate_assets():
     print(f"Final Script: {script}")
 
     # Voice generation
-    communicate = edge_tts.Communicate(script, "hi-IN-MadhurNeural")
+    communicate = edge_tts.Communicate(script, "hi-IN-MadurNeural") # Fixed spelling for Madhur
     await communicate.save("voice.mp3")
 
     # Fast Image Generation
@@ -86,6 +86,7 @@ async def generate_assets():
 def create_video(is_short=True):
     print("🚀 Fast Encoding (Ultrafast preset)...")
     size = "720:1280" if is_short else "1280:720"
+    # '-preset ultrafast' is used for GitHub Action speed
     cmd = f"ffmpeg -loop 1 -i thumbnail.jpg -i voice.mp3 -c:v libx264 -preset ultrafast -t 12 -pix_fmt yuv420p -vf 'scale={size}' video.mp4 -y"
     subprocess.run(cmd, shell=True)
 
