@@ -2,25 +2,24 @@ name: Uzumaki Daily Automation
 
 on:
   schedule:
-    - cron: '0 10 * * *' # Roz 3:30 PM IST par apne aap chalega
-  workflow_dispatch:      # Isse aap "Run workflow" button daba kar manually bhi chala sakte hain
+    - cron: '0 10 * * *'
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Version update
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5 # Version update
         with:
-          python-version: '3.9'
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
-          pip install requests edge-tts google-api-python-client google-auth-oauthlib
+          pip install requests edge-tts google-api-python-client google-auth-oauthlib google-auth-httplib2
           sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Run Uzumaki Bot
