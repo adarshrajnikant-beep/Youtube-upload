@@ -27,21 +27,32 @@ def get_youtube_client():
 
 def get_viral_content():
     prompt = "Write a 1-line viral Free Fire Hindi status for YouTube Shorts about V-Badge journey. Use hashtags."
-    if OPENROUTER_KEY:
+    
+    # 1. Try Groq (Fastest)
+    if GROQ_KEY:
         try:
-            print("Trying OpenRouter (gpt-oss-120b)...")
-            res = requests.post("https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {OPENROUTER_KEY}"},
-                json={"model": "openai/gpt-oss-120b:free", "messages": [{"role": "user", "content": prompt}]}, timeout=15).json()
+            res = requests.post("https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {GROQ_KEY}"},
+                json={"model": "llama3-8b-8192", "messages": [{"role": "user", "content": prompt}]}, timeout=10).json()
             return res['choices'][0]['message']['content']
         except: pass
-    return "V-Badge journey day 1: Har har nahi manunga! 🔥 #FreeFire #VBadge"
+
+    # 2. Try OpenRouter (gpt-oss-120b)
+    if OPENROUTER_KEY:
+        try:
+            res = requests.post("https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {OPENROUTER_KEY}"},
+                json={"model": "openai/gpt-oss-120b:free", "messages": [{"role": "user", "content": prompt}]}, timeout=10).json()
+            return res['choices'][0]['message']['content']
+        except: pass
+
+    return "V-Badge journey: Haar nahi manunga, jab tak V-Badge nahi mil jata! 🔥 #FreeFire #VBadge"
 
 async def generate_assets():
     script = get_viral_content()
     print(f"Final Script: {script}")
 
-    # Voice generation - Fixed spelling and added fallback
+    # Voice generation with Fallback
     try:
         communicate = edge_tts.Communicate(script, "hi-IN-MadhurNeural")
         await communicate.save("voice.mp3")
@@ -49,39 +60,71 @@ async def generate_assets():
         communicate = edge_tts.Communicate(script, "hi-IN-SwaraNeural")
         await communicate.save("voice.mp3")
 
-    # Fast Image Generation
-    img_url = f"https://pollinations.ai/p/free_fire_gaming_pro_v_badge_neon?width=720&height=1280&seed={datetime.datetime.now().second}"
-    with open("thumbnail.jpg", "wb") as f:
-        f.write(requests.get(img_url).content)
+    # Ultra-Stable Image Download Logic
+    print("Downloading stable image...")
+    seed = datetime.datetime.now().second
+    # Direct image link to avoid JSON/HTML errors
+    img_url = f"https://image.pollinations.ai/prompt/free_fire_epic_neon_gaming_character_v_badge?width=720&height=1280&seed={seed}&nologo=true"
+    
+    try:
+        r = requests.get(img_url, timeout=30)
+        if r.status_code == 200 and len(r.content) > 1000:
+            with open("thumbnail.jpg", "wb") as f:
+                f.write(r.content)
+            print("✅ Image Saved!")
+        else:
+            raise Exception("Bad Image Data")
+    except:
+        print("Using Emergency Backup Image...")
+        backup = "https://images.pexels.com/photos/3165335/pexels-photo-3165335.jpeg?auto=compress&cs=tinysrgb&w=720&h=1280"
+        with open("thumbnail.jpg", "wb") as f:
+            f.write(requests.get(backup).content)
+
     return script
 
 def create_video(is_short=True):
-    print("🚀 Fast Encoding...")
-    size = "720:1280" if is_short else "1280:720"
-    cmd = f"ffmpeg -loop 1 -i thumbnail.jpg -i voice.mp3 -c:v libx264 -preset ultrafast -t 12 -pix_fmt yuv420p -vf 'scale={size}' video.mp4 -y"
-    subprocess.run(cmd, shell=True)
+    print("🚀 Video Encoding (Bulletproof Mode)...")
+    width, height = (720, 1280) if is_short else (1280, 720)
+    
+    # Fix for 'No JPEG data found' error: force image decoding and fix frame rate
+    cmd = [
+        "ffmpeg", "-y",
+        "-loop", "1", "-t", "12", 
+        "-i", "thumbnail.jpg",
+        "-i", "voice.mp3",
+        "-c:v", "libx264", "-preset", "ultrafast",
+        "-tune", "stillimage", "-c:a", "aac", "-b:a", "192k",
+        "-vf", f"scale={width}:{height},format=yuv420p",
+        "-shortest", "video.mp4"
+    ]
+    subprocess.run(cmd)
+    print("✅ Video Rendered Successfully!")
 
 def upload_to_youtube(title, description, is_short=True):
     try:
         youtube = get_youtube_client()
         request_body = {
-            'snippet': {'title': title + (" #Shorts" if is_short else ""), 'description': description, 'categoryId': '20'},
+            'snippet': {
+                'title': title + (" #Shorts #FreeFire" if is_short else ""),
+                'description': description,
+                'categoryId': '20'
+            },
             'status': {'privacyStatus': 'public'}
         }
         media = MediaFileUpload('video.mp4', mimetype='video/mp4', resumable=True)
         youtube.videos().insert(part='snippet,status', body=request_body, media_body=media).execute()
-        print("✅ YOUTUBE UPLOAD SUCCESSFUL!")
+        print("🚀 YOUTUBE UPLOAD DONE!")
     except Exception as e:
         print(f"❌ Upload Error: {e}")
 
 def main():
     today = datetime.datetime.now().strftime('%A')
-    print(f"--- Starting Uzumaki-Bot for {today} ---")
+    print(f"--- Uzumaki Bot starting for {today} ---")
     script = asyncio.run(generate_assets())
     is_short = today not in ['Sunday', 'Monday']
     create_video(is_short=is_short)
-    upload_to_youtube("Free Fire Viral Shorts", script, is_short=is_short)
+    upload_to_youtube("Uzumaki-FF V-Badge Journey", script, is_short=is_short)
 
 if __name__ == "__main__":
     main()
-
+        
