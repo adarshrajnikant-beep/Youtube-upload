@@ -5,49 +5,53 @@ import asyncio
 import edge_tts
 
 # Configuration
-CLIENT_ID = os.getenv("CLIENT_ID")
-CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-REFRESH_TOKEN = os.getenv("REFRESH_TOKEN")
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
+GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 
 def get_viral_content():
-    try:
-        response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {OPENROUTER_KEY}"},
-            json={
-                "model": "meta-llama/llama-3-8b-instruct:free",
-                "messages": [{"role": "user", "content": "Write 1 line viral Free Fire Hindi status for YouTube about V-Badge journey."}]
-            },
-            timeout=15
-        )
-        data = response.json()
-        if 'choices' in data:
-            return data['choices'][0]['message']['content']
-        else:
-            print("AI Error, using backup script...")
-            return "V-Badge ki journey shuru! Uzumaki-FF ko subscribe karo. 🔥 #FreeFire #VBadge"
-    except:
-        return "Aaj ka goal: 100 Likes! Free Fire viral gameplay coming soon. 🎮 #UzumakiFF"
+    # 1. Pehle Gemini Try Karte Hain (As Primary/Backup)
+    if GEMINI_KEY:
+        try:
+            print("Trying Gemini AI...")
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}"
+            payload = {"contents": [{"parts":[{"text": "Write a 1 line viral Free Fire Hindi status for YouTube Shorts about V-Badge journey."}]}]}
+            response = requests.post(url, json=payload, timeout=10)
+            return response.json()['candidates'][0]['content']['parts'][0]['text']
+        except Exception as e:
+            print(f"Gemini failed: {e}")
 
-async def make_voice(text):
-    communicate = edge_tts.Communicate(text, "hi-IN-MadhurNeural")
-    await communicate.save("voice.mp3")
+    # 2. Agar Gemini fail ho toh OpenRouter
+    if OPENROUTER_KEY:
+        try:
+            print("Trying OpenRouter...")
+            response = requests.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={"Authorization": f"Bearer {OPENROUTER_KEY}"},
+                json={
+                    "model": "meta-llama/llama-3-8b-instruct:free",
+                    "messages": [{"role": "user", "content": "Write 1 line Free Fire Hindi status."}]
+                },
+                timeout=10
+            )
+            return response.json()['choices'][0]['message']['content']
+        except:
+            pass
+
+    # 3. Last Option: Hardcoded Backup
+    return "V-Badge ki journey shuru! Uzumaki-FF ko subscribe karo. 🔥 #FreeFire #VBadge"
+
+# ... (Baki ka code wahi rahega jo pehle tha)
 
 def main():
-    today = datetime.datetime.now().strftime('%A')
     content = get_viral_content()
-    print(f"Content: {content}")
+    print(f"Final Content: {content}")
     
     # Image Generation
-    img_url = f"https://pollinations.ai/p/free_fire_v_badge_gaming_character_ultra_realistic?width=1080&height=1920&seed={datetime.datetime.now().second}"
+    img_url = f"https://pollinations.ai/p/free_fire_pro_player_with_v_badge_neon_gaming_style?width=1080&height=1920&seed={datetime.datetime.now().second}"
     img_data = requests.get(img_url).content
     with open('post.jpg', 'wb') as f:
         f.write(img_data)
     print("✅ Image generated!")
-
-    # Abhi ke liye hum sirf check kar rahe hain
-    print(f"Ready to upload on {today}")
 
 if __name__ == "__main__":
     main()
